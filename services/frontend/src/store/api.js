@@ -105,6 +105,12 @@ export const api = createApi({
         body: data
       }),
       invalidatesTags: ['Credentials']
+    }),
+    getPlans: builder.query({
+      query: () => '/admin/plans'
+    }),
+    getSystemStats: builder.query({
+      query: () => '/admin/stats'
     })
   })
 });
