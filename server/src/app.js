@@ -7,6 +7,8 @@ import { connectRedis } from './config/redis.js';
 import { initStripe } from './config/stripe.js';
 import swaggerSpec from './config/swagger.js';
 import seedActionDefinitions from './seeder/actions.js';
+import seedNodeDefinitions from './seeder/nodeDefinitions.js';
+import seedSystemData from './seeder/systemData.js';
 import { initQueue, initWorker } from './engine/worker.js';
 
 // Import routes
@@ -15,6 +17,12 @@ import actionsRoutes from './modules/actions/routes.js';
 import workflowsRoutes from './modules/workflows/routes.js';
 import webhooksRoutes from './modules/webhooks/routes.js';
 import orgsRoutes from './modules/orgs/routes.js';
+import subscriptionsRoutes from './modules/subscriptions/routes.js';
+import credentialsRoutes from './modules/credentials/routes.js';
+import adminRoutes from './modules/admin/routes.js';
+import subscriptionsRoutes from './modules/subscriptions/routes.js';
+import credentialsRoutes from './modules/credentials/routes.js';
+import adminRoutes from './modules/admin/routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -37,6 +45,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/actions', actionsRoutes);
 app.use('/api/workflows', workflowsRoutes);
 app.use('/api/orgs', orgsRoutes);
+app.use('/api/subscriptions', subscriptionsRoutes);
+app.use('/api/credentials', credentialsRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/hooks', webhooksRoutes);
 
 // Swagger Documentation
@@ -72,8 +83,14 @@ const startServer = async () => {
     // Initialize Stripe
     initStripe();
 
-    // Seed ActionDefinitions
+    // Seed system data
+    await seedSystemData();
+    
+    // Seed ActionDefinitions (backward compatibility)
     await seedActionDefinitions();
+    
+    // Seed NodeDefinitions (new system)
+    await seedNodeDefinitions();
 
     // Initialize BullMQ Queue and Worker
     initQueue();

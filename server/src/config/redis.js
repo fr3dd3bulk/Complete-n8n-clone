@@ -4,11 +4,10 @@ let redisClient = null;
 
 const connectRedis = async () => {
   try {
+    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    
     redisClient = createClient({
-      socket: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT) || 6379,
-      },
+      url: redisUrl,
     });
 
     redisClient.on('error', (err) => {
@@ -35,4 +34,17 @@ const getRedisClient = () => {
   return redisClient;
 };
 
-export { connectRedis, getRedisClient };
+// Get connection for BullMQ (returns connection config, not client)
+const getRedisConnection = async () => {
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  
+  // Parse URL for BullMQ connection
+  const url = new URL(redisUrl);
+  
+  return {
+    host: url.hostname,
+    port: parseInt(url.port) || 6379,
+  };
+};
+
+export { connectRedis, getRedisClient, getRedisConnection };
