@@ -17,6 +17,9 @@ import actionsRoutes from './modules/actions/routes.js';
 import workflowsRoutes from './modules/workflows/routes.js';
 import webhooksRoutes from './modules/webhooks/routes.js';
 import orgsRoutes from './modules/orgs/routes.js';
+import subscriptionsRoutes from './modules/subscriptions/routes.js';
+import credentialsRoutes from './modules/credentials/routes.js';
+import adminRoutes from './modules/admin/routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,6 +42,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/actions', actionsRoutes);
 app.use('/api/workflows', workflowsRoutes);
 app.use('/api/orgs', orgsRoutes);
+app.use('/api/subscriptions', subscriptionsRoutes);
+app.use('/api/credentials', credentialsRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/hooks', webhooksRoutes);
 
 // Swagger Documentation
