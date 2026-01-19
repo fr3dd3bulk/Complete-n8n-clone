@@ -31,10 +31,10 @@ This document summarizes the complete implementation of a production-grade n8n w
 ## 🏗️ Architecture Implemented
 
 ### Microservices (5)
-1. **API Service** - Express REST API (Port 3000)
+1. **API Service** - Express REST API (Port 5000)
 2. **Worker Service** - BullMQ execution workers (Scalable)
 3. **Scheduler Service** - Cron-based triggers
-4. **Frontend Service** - React + Vite (Port 3001)
+4. **Frontend Service** - React + Vite (Port 3005)
 5. **Infrastructure** - MongoDB + Redis
 
 ### Technology Stack (Updated to Latest Stable)
@@ -622,8 +622,8 @@ cp .env.example .env
 docker compose up
 
 # 4. Access application
-# Frontend: http://localhost:3001
-# API: http://localhost:3000
+# Frontend: http://localhost:3005
+# API: http://localhost:5000
 # Login: admin@example.com / admin123
 ```
 

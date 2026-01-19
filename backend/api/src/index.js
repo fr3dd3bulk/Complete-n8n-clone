@@ -3,7 +3,7 @@ import app from './app.js';
 import { initializeDatabase } from './server.js';
 import { logger } from '@n8n-clone/shared';
 
-const PORT = process.env.API_PORT || 3000;
+const PORT = process.env.API_PORT || 5000;
 
 async function start() {
   try {

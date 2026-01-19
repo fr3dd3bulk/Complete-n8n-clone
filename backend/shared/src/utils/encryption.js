@@ -48,6 +48,6 @@ export function hash(text) {
   return crypto.createHash('sha256').update(text).digest('hex');
 }
 
-export function generateToken(length = 32) {
+export function generateRandomToken(length = 32) {
   return crypto.randomBytes(length).toString('hex');
 }

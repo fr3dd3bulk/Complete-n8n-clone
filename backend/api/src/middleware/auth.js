@@ -39,3 +39,5 @@ export function optionalAuth(req, res, next) {
   
   next();
 }
+
+export { authenticate as protect };

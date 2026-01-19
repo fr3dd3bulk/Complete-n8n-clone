@@ -72,8 +72,8 @@ docker compose up
 ```
 
 4. Access the application:
-- Frontend: http://localhost:3001
-- API: http://localhost:3000
+- Frontend: http://localhost:3005
+- API: http://localhost:5000
 - MongoDB: localhost:27017
 - Redis: localhost:6379
 
@@ -435,8 +435,8 @@ ALL /api/webhooks/:webhookPath - Webhook endpoint
 ```env
 # Application
 NODE_ENV=development
-API_PORT=3000
-FRONTEND_PORT=3001
+API_PORT=5000
+FRONTEND_PORT=3005
 
 # Database
 MONGO_URI=mongodb://mongo:27017/n8n-clone
@@ -471,8 +471,8 @@ STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 
 # URLs
-API_URL=http://localhost:3000
-FRONTEND_URL=http://localhost:3001
+API_URL=http://localhost:5000
+FRONTEND_URL=http://localhost:3005
 ```
 
 ## 💻 Development
