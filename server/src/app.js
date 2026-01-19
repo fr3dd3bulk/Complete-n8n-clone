@@ -7,6 +7,8 @@ import { connectRedis } from './config/redis.js';
 import { initStripe } from './config/stripe.js';
 import swaggerSpec from './config/swagger.js';
 import seedActionDefinitions from './seeder/actions.js';
+import seedNodeDefinitions from './seeder/nodeDefinitions.js';
+import seedSystemData from './seeder/systemData.js';
 import { initQueue, initWorker } from './engine/worker.js';
 
 // Import routes
@@ -72,8 +74,14 @@ const startServer = async () => {
     // Initialize Stripe
     initStripe();
 
-    // Seed ActionDefinitions
+    // Seed system data
+    await seedSystemData();
+    
+    // Seed ActionDefinitions (backward compatibility)
     await seedActionDefinitions();
+    
+    // Seed NodeDefinitions (new system)
+    await seedNodeDefinitions();
 
     // Initialize BullMQ Queue and Worker
     initQueue();
