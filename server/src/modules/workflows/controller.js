@@ -16,7 +16,12 @@ import { addWorkflowJob } from '../../engine/worker.js';
  */
 export const listWorkflows = async (req, res) => {
   try {
-    const workflows = await Workflow.find({ orgId: req.user.orgId })
+    // Super admins can see all workflows, regular users only see their org's workflows
+    const query = req.user.role === 'super_admin' && !req.user.orgId
+      ? {} 
+      : { orgId: req.user.orgId };
+    
+    const workflows = await Workflow.find(query)
       .populate('createdBy', 'name email')
       .sort({ updatedAt: -1 });
 
@@ -50,10 +55,13 @@ export const listWorkflows = async (req, res) => {
  */
 export const getWorkflow = async (req, res) => {
   try {
-    const workflow = await Workflow.findOne({
-      _id: req.params.id,
-      orgId: req.user.orgId,
-    }).populate('createdBy', 'name email');
+    // Super admins can access any workflow, regular users only their org's workflows
+    const query = req.user.role === 'super_admin' && !req.user.orgId
+      ? { _id: req.params.id }
+      : { _id: req.params.id, orgId: req.user.orgId };
+    
+    const workflow = await Workflow.findOne(query)
+      .populate('createdBy', 'name email');
 
     if (!workflow) {
       return res.status(404).json({ error: 'Workflow not found' });
@@ -103,15 +111,22 @@ export const createWorkflow = async (req, res) => {
       return res.status(400).json({ error: 'Name is required' });
     }
 
-    const workflow = new Workflow({
+    // Super admins can create workflows without an orgId (global/demo workflows)
+    const workflowData = {
       name,
       description,
       nodes: nodes || [],
       edges: edges || [],
       trigger: trigger || { type: 'manual' },
-      orgId: req.user.orgId,
       createdBy: req.user._id,
-    });
+    };
+    
+    // Only add orgId if user has one
+    if (req.user.orgId) {
+      workflowData.orgId = req.user.orgId;
+    }
+
+    const workflow = new Workflow(workflowData);
 
     await workflow.save();
 
@@ -154,8 +169,13 @@ export const updateWorkflow = async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
+    // Super admins can update any workflow, regular users only their org's workflows
+    const query = req.user.role === 'super_admin' && !req.user.orgId
+      ? { _id: id }
+      : { _id: id, orgId: req.user.orgId };
+
     const workflow = await Workflow.findOneAndUpdate(
-      { _id: id, orgId: req.user.orgId },
+      query,
       { $set: updates },
       { new: true, runValidators: true }
     );
@@ -196,10 +216,12 @@ export const deleteWorkflow = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const workflow = await Workflow.findOneAndDelete({
-      _id: id,
-      orgId: req.user.orgId,
-    });
+    // Super admins can delete any workflow, regular users only their org's workflows
+    const query = req.user.role === 'super_admin' && !req.user.orgId
+      ? { _id: id }
+      : { _id: id, orgId: req.user.orgId };
+
+    const workflow = await Workflow.findOneAndDelete(query);
 
     if (!workflow) {
       return res.status(404).json({ error: 'Workflow not found' });
@@ -243,10 +265,12 @@ export const executeWorkflow = async (req, res) => {
     const { id } = req.params;
     const { triggerData } = req.body;
 
-    const workflow = await Workflow.findOne({
-      _id: id,
-      orgId: req.user.orgId,
-    });
+    // Super admins can execute any workflow, regular users only their org's workflows
+    const query = req.user.role === 'super_admin' && !req.user.orgId
+      ? { _id: id }
+      : { _id: id, orgId: req.user.orgId };
+
+    const workflow = await Workflow.findOne(query);
 
     if (!workflow) {
       return res.status(404).json({ error: 'Workflow not found' });
@@ -293,10 +317,12 @@ export const getWorkflowExecutions = async (req, res) => {
     const { id } = req.params;
     const limit = parseInt(req.query.limit) || 50;
 
-    const executions = await Execution.find({
-      workflowId: id,
-      orgId: req.user.orgId,
-    })
+    // Super admins can see all executions for a workflow, regular users only their org's executions
+    const query = req.user.role === 'super_admin' && !req.user.orgId
+      ? { workflowId: id }
+      : { workflowId: id, orgId: req.user.orgId };
+
+    const executions = await Execution.find(query)
       .sort({ createdAt: -1 })
       .limit(limit);
 
