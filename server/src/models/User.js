@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema({
     enum: ['super_admin', 'user'],
     default: 'user',
   },
-  defaultOrgId: {
+  orgId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organization',
   },
@@ -77,7 +77,7 @@ userSchema.methods.toJSON = function() {
 
 // Indexes
 userSchema.index({ email: 1 });
-userSchema.index({ defaultOrgId: 1 });
+userSchema.index({ orgId: 1 });
 userSchema.index({ role: 1, isActive: 1 });
 
 const User = mongoose.model('User', userSchema);

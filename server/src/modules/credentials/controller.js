@@ -10,6 +10,39 @@ const ENCRYPTION_KEY = process.env.CREDENTIAL_ENCRYPTION_KEY;
 const IV_LENGTH = 16;
 
 /**
+ * Helper function to build query filter based on user role and orgId
+ */
+const buildOrgQuery = (req, baseQuery = {}) => {
+  // Super admins without orgId can access all resources
+  if (req.user.role === 'super_admin' && !req.user.orgId) {
+    return baseQuery;
+  }
+  
+  // Regular users must have orgId
+  if (!req.user.orgId) {
+    throw new Error('User must belong to an organization');
+  }
+  
+  // Extract orgId (handle both populated and non-populated cases)
+  const orgId = req.user.orgId._id || req.user.orgId;
+  
+  return {
+    ...baseQuery,
+    orgId,
+  };
+};
+
+/**
+ * Helper function to get orgId value (or null for super admin)
+ */
+const getOrgId = (req) => {
+  if (!req.user.orgId) {
+    return null;
+  }
+  return req.user.orgId._id || req.user.orgId;
+};
+
+/**
  * Encrypt credential data using AES-256
  */
 const encryptData = (data) => {
@@ -77,27 +110,37 @@ export const createCredential = async (req, res) => {
 
     const encryptedData = encryptData(data);
 
-    const credential = new Credential({
+    const credentialData = {
       name,
       type,
       data: encryptedData,
       nodeTypes: nodeTypes || [],
-      orgId: req.user.orgId._id,
       createdBy: req.user._id,
-    });
+    };
+
+    // Add orgId if user has one
+    const orgId = getOrgId(req);
+    if (orgId) {
+      credentialData.orgId = orgId;
+    }
+
+    const credential = new Credential(credentialData);
 
     await credential.save();
 
-    await AuditLog.create({
-      orgId: req.user.orgId._id,
-      userId: req.user._id,
-      action: 'create',
-      resource: 'credential',
-      resourceId: credential._id,
-      details: { name, type },
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
+    // Only create audit log if user has an orgId
+    if (orgId) {
+      await AuditLog.create({
+        orgId,
+        userId: req.user._id,
+        action: 'create',
+        resource: 'credential',
+        resourceId: credential._id,
+        details: { name, type },
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+    }
 
     res.status(201).json({
       message: 'Credential created successfully',
@@ -136,10 +179,8 @@ export const getCredentials = async (req, res) => {
   try {
     const { type, nodeType } = req.query;
     
-    const filter = {
-      orgId: req.user.orgId._id,
-      isActive: true,
-    };
+    // Build query filter based on user role and orgId
+    const filter = buildOrgQuery(req, { isActive: true });
 
     if (type) {
       filter.type = type;
@@ -156,7 +197,7 @@ export const getCredentials = async (req, res) => {
     res.json({ credentials });
   } catch (error) {
     console.error('Get credentials error:', error);
-    res.status(500).json({ error: 'Failed to get credentials' });
+    res.status(500).json({ error: error.message || 'Failed to get credentials' });
   }
 };
 
@@ -188,10 +229,11 @@ export const getCredential = async (req, res) => {
     const { id } = req.params;
     const { decrypt } = req.query;
 
-    const credential = await Credential.findOne({
-      _id: id,
-      orgId: req.user.orgId._id,
-    }).populate('createdBy', 'name email');
+    // Build query filter based on user role and orgId
+    const query = buildOrgQuery(req, { _id: id });
+
+    const credential = await Credential.findOne(query)
+      .populate('createdBy', 'name email');
 
     if (!credential) {
       return res.status(404).json({ error: 'Credential not found' });
@@ -213,7 +255,7 @@ export const getCredential = async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Get credential error:', error);
-    res.status(500).json({ error: 'Failed to get credential' });
+    res.status(500).json({ error: error.message || 'Failed to get credential' });
   }
 };
 
@@ -257,10 +299,10 @@ export const updateCredential = async (req, res) => {
     const { id } = req.params;
     const { name, data, nodeTypes, isActive } = req.body;
 
-    const credential = await Credential.findOne({
-      _id: id,
-      orgId: req.user.orgId._id,
-    });
+    // Build query filter based on user role and orgId
+    const query = buildOrgQuery(req, { _id: id });
+
+    const credential = await Credential.findOne(query);
 
     if (!credential) {
       return res.status(404).json({ error: 'Credential not found' });
@@ -276,16 +318,20 @@ export const updateCredential = async (req, res) => {
 
     await credential.save();
 
-    await AuditLog.create({
-      orgId: req.user.orgId._id,
-      userId: req.user._id,
-      action: 'update',
-      resource: 'credential',
-      resourceId: credential._id,
-      details: { name, hasDataUpdate: !!data },
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
+    // Only create audit log if user has an orgId
+    const orgId = getOrgId(req);
+    if (orgId) {
+      await AuditLog.create({
+        orgId,
+        userId: req.user._id,
+        action: 'update',
+        resource: 'credential',
+        resourceId: credential._id,
+        details: { name, hasDataUpdate: !!data },
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+    }
 
     res.json({
       message: 'Credential updated successfully',
@@ -293,7 +339,7 @@ export const updateCredential = async (req, res) => {
     });
   } catch (error) {
     console.error('Update credential error:', error);
-    res.status(500).json({ error: 'Failed to update credential' });
+    res.status(500).json({ error: error.message || 'Failed to update credential' });
   }
 };
 
@@ -319,10 +365,10 @@ export const deleteCredential = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const credential = await Credential.findOne({
-      _id: id,
-      orgId: req.user.orgId._id,
-    });
+    // Build query filter based on user role and orgId
+    const query = buildOrgQuery(req, { _id: id });
+
+    const credential = await Credential.findOne(query);
 
     if (!credential) {
       return res.status(404).json({ error: 'Credential not found' });
@@ -331,21 +377,25 @@ export const deleteCredential = async (req, res) => {
     credential.isActive = false;
     await credential.save();
 
-    await AuditLog.create({
-      orgId: req.user.orgId._id,
-      userId: req.user._id,
-      action: 'delete',
-      resource: 'credential',
-      resourceId: credential._id,
-      details: { name: credential.name },
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
+    // Only create audit log if user has an orgId
+    const orgId = getOrgId(req);
+    if (orgId) {
+      await AuditLog.create({
+        orgId,
+        userId: req.user._id,
+        action: 'delete',
+        resource: 'credential',
+        resourceId: credential._id,
+        details: { name: credential.name },
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+    }
 
     res.json({ message: 'Credential deleted successfully' });
   } catch (error) {
     console.error('Delete credential error:', error);
-    res.status(500).json({ error: 'Failed to delete credential' });
+    res.status(500).json({ error: error.message || 'Failed to delete credential' });
   }
 };
 
@@ -381,10 +431,10 @@ export const testCredential = async (req, res) => {
     const { id } = req.params;
     const { testEndpoint } = req.body;
 
-    const credential = await Credential.findOne({
-      _id: id,
-      orgId: req.user.orgId._id,
-    });
+    // Build query filter based on user role and orgId
+    const query = buildOrgQuery(req, { _id: id });
+
+    const credential = await Credential.findOne(query);
 
     if (!credential) {
       return res.status(404).json({ error: 'Credential not found' });
@@ -400,16 +450,20 @@ export const testCredential = async (req, res) => {
       });
     }
 
-    await AuditLog.create({
-      orgId: req.user.orgId._id,
-      userId: req.user._id,
-      action: 'test',
-      resource: 'credential',
-      resourceId: credential._id,
-      details: { testEndpoint },
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
+    // Only create audit log if user has an orgId
+    const orgId = getOrgId(req);
+    if (orgId) {
+      await AuditLog.create({
+        orgId,
+        userId: req.user._id,
+        action: 'test',
+        resource: 'credential',
+        resourceId: credential._id,
+        details: { testEndpoint },
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+    }
 
     res.json({
       success: true,
@@ -418,6 +472,6 @@ export const testCredential = async (req, res) => {
     });
   } catch (error) {
     console.error('Test credential error:', error);
-    res.status(500).json({ error: 'Failed to test credential' });
+    res.status(500).json({ error: error.message || 'Failed to test credential' });
   }
 };
